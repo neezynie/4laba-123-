@@ -1,26 +1,38 @@
-name: Deploy on Release
+name: Deploy to GitHub Pages
 
 on:
+  push:
+    branches: [main]
   release:
     types: [published]
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment: github-pages
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         
-      - name: Create version
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Create version structure
         run: |
-          VERSION="${GITHUB_REF#refs/tags/}"
-          echo "🚀 Deploying: $VERSION"
+          # Определяем версию
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            echo "🚀 Deploying RELEASE version: $VERSION"
+          else
+            SHORT_SHA="${GITHUB_SHA:0:7}"
+            DATE=$(date +'%Y%m%d')
+            VERSION="dev-${DATE}-${SHORT_SHA}"
+            echo "🚀 Deploying DEV version: $VERSION"
+          fi
           
           # Создаем папку версии
           mkdir -p "versions/$VERSION"
@@ -28,159 +40,72 @@ jobs:
           # Копируем файлы
           cp -r en/ ru/ index.html "versions/$VERSION/"
           
-          # Создаем главную страницу для версии
-          cat > "versions/$VERSION/index.html" << EOF
-          <!DOCTYPE html>
-          <html lang="ru">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Версия $VERSION - Лабораторная работа</title>
-              <style>
-                  body { 
-                      font-family: 'Segoe UI', Arial, sans-serif; 
-                      max-width: 900px; 
-                      margin: 0 auto; 
-                      padding: 40px 20px; 
-                      line-height: 1.6;
-                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                      min-height: 100vh;
-                  }
-                  .container {
-                      background: white;
-                      border-radius: 15px;
-                      padding: 40px;
-                      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-                  }
-                  nav { 
-                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                      padding: 20px; 
-                      border-radius: 10px; 
-                      margin-bottom: 30px;
-                      text-align: center;
-                  }
-                  nav a { 
-                      margin: 0 20px; 
-                      text-decoration: none; 
-                      color: white; 
-                      font-weight: bold;
-                      font-size: 18px;
-                      padding: 10px 20px;
-                      border-radius: 25px;
-                      transition: all 0.3s;
-                  }
-                  nav a:hover { 
-                      background: rgba(255,255,255,0.2);
-                      transform: translateY(-2px);
-                  }
-                  .version-info { 
-                      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
-                      color: white;
-                      padding: 20px; 
-                      border-radius: 10px; 
-                      margin: 20px 0;
-                      text-align: center;
-                      font-size: 18px;
-                  }
-                  .btn-group {
-                      text-align: center;
-                      margin: 30px 0;
-                  }
-                  .btn {
-                      display: inline-block;
-                      padding: 15px 30px;
-                      margin: 10px;
-                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                      color: white;
-                      text-decoration: none;
-                      border-radius: 25px;
-                      font-weight: bold;
-                      transition: all 0.3s;
-                      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-                  }
-                  .btn:hover {
-                      transform: translateY(-3px);
-                      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-                  }
-                  h1 {
-                      text-align: center;
-                      color: #333;
-                      margin-bottom: 10px;
-                  }
-                  .subtitle {
-                      text-align: center;
-                      color: #666;
-                      margin-bottom: 30px;
-                      font-size: 18px;
-                  }
-              </style>
-          </head>
-          <body>
-              <div class="container">
-                  <h1>🚀 Лабораторная работа №4</h1>
-                  <div class="subtitle">Автоматизация публикации web приложения</div>
-                  
-                  <div class="version-info">
-                      <strong>Версия:</strong> $VERSION | 
-                      <strong>Дата развертывания:</strong> $(date +"%d.%m.%Y %H:%M")
-                  </div>
-
-                  <nav>
-                      <a href="ru/">Русская версия</a>
-                      <a href="en/">English Version</a>
-                  </nav>
-
-                  <div class="btn-group">
-                      <a href="ru/" class="btn">🇷🇺 Русская версия</a>
-                      <a href="en/" class="btn">🇺🇸 English Version</a>
-                      <a href="../../" class="btn">📚 Все версии</a>
-                  </div>
-
-                  <footer style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666;">
-                      <p>Автоматически развернуто через GitHub Actions</p>
-                  </footer>
-              </div>
-          </body>
-          </html>
-          EOF
-          
-          echo "✅ Files in versions/$VERSION/:"
+          echo "✅ Created version: $VERSION"
+          echo "📁 Files in versions/$VERSION/:"
           ls -la "versions/$VERSION/"
           
       - name: Update versions list
         run: |
-          VERSION="${GITHUB_REF#refs/tags/}"
-          echo "📝 Updating versions.json"
-          
-          if [ ! -f versions.json ]; then
-            echo '[]' > versions.json
+          # Определяем версию
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            SHORT_SHA="${GITHUB_SHA:0:7}"
+            DATE=$(date +'%Y%m%d')
+            VERSION="dev-${DATE}-${SHORT_SHA}"
           fi
           
+          echo "📝 Updating versions.json for version: $VERSION"
+          
+          # Создаем начальный versions.json если не существует
+          if [ ! -f versions.json ]; then
+            echo '[]' > versions.json
+            echo "📄 Created new versions.json"
+          fi
+          
+          # Обновляем versions.json с помощью Node.js
           node -e "
           const fs = require('fs');
           let versions = [];
           try {
             versions = JSON.parse(fs.readFileSync('versions.json'));
-          } catch(e) {}
+            console.log('📖 Loaded existing versions.json');
+          } catch(e) {
+            console.log('📄 Creating new versions array');
+            versions = [];
+          }
           
-          if (!versions.find(v => v.name === '$VERSION')) {
+          // Проверяем есть ли уже такая версия
+          const existingVersion = versions.find(v => v.name === '$VERSION');
+          if (!existingVersion) {
             versions.unshift({
               name: '$VERSION',
               url: 'versions/$VERSION',
               date: new Date().toISOString(),
-              description: 'Automated release'
+              description: '${{ github.event_name }} deployment'
             });
-            console.log('✅ Added version: $VERSION');
+            console.log('✅ Added new version: $VERSION');
+          } else {
+            console.log('ℹ️ Version already exists: $VERSION');
           }
           
+          // Сохраняем обратно
           fs.writeFileSync('versions.json', JSON.stringify(versions, null, 2));
-          console.log('Total versions:', versions.length);
+          console.log('📊 Total versions:', versions.length);
           "
           
-      - name: Upload and deploy
+      - name: Show final structure
+        run: |
+          echo "📁 Final structure:"
+          find . -name "*.html" | head -10
+          echo "📊 Total HTML files: $(find . -name "*.html" | wc -l)"
+          echo "📋 Versions available: $(ls -1 versions/ 2>/dev/null | wc -l || echo 0)"
+          
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
-        with: 
+        with:
           path: .
           
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
