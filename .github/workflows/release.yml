@@ -1,0 +1,111 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Create version structure
+        run: |
+          # Определяем версию
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            echo "🚀 Deploying RELEASE version: $VERSION"
+          else
+            SHORT_SHA="${GITHUB_SHA:0:7}"
+            DATE=$(date +'%Y%m%d')
+            VERSION="dev-${DATE}-${SHORT_SHA}"
+            echo "🚀 Deploying DEV version: $VERSION"
+          fi
+          
+          # Создаем папку версии
+          mkdir -p "versions/$VERSION"
+          
+          # Копируем файлы
+          cp -r en/ ru/ index.html "versions/$VERSION/"
+          
+          echo "✅ Created version: $VERSION"
+          echo "📁 Files in versions/$VERSION/:"
+          ls -la "versions/$VERSION/"
+          
+      - name: Update versions list
+        run: |
+          # Определяем версию
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            SHORT_SHA="${GITHUB_SHA:0:7}"
+            DATE=$(date +'%Y%m%d')
+            VERSION="dev-${DATE}-${SHORT_SHA}"
+          fi
+          
+          echo "📝 Updating versions.json for version: $VERSION"
+          
+          # Создаем начальный versions.json если не существует
+          if [ ! -f versions.json ]; then
+            echo '[]' > versions.json
+            echo "📄 Created new versions.json"
+          fi
+          
+          # Обновляем versions.json с помощью Node.js
+          node -e "
+          const fs = require('fs');
+          let versions = [];
+          try {
+            versions = JSON.parse(fs.readFileSync('versions.json'));
+            console.log('📖 Loaded existing versions.json');
+          } catch(e) {
+            console.log('📄 Creating new versions array');
+            versions = [];
+          }
+          
+          // Проверяем есть ли уже такая версия
+          const existingVersion = versions.find(v => v.name === '$VERSION');
+          if (!existingVersion) {
+            versions.unshift({
+              name: '$VERSION',
+              url: 'versions/$VERSION',
+              date: new Date().toISOString(),
+              description: '${{ github.event_name }} deployment'
+            });
+            console.log('✅ Added new version: $VERSION');
+          } else {
+            console.log('ℹ️ Version already exists: $VERSION');
+          }
+          
+          // Сохраняем обратно
+          fs.writeFileSync('versions.json', JSON.stringify(versions, null, 2));
+          console.log('📊 Total versions:', versions.length);
+          "
+          
+      - name: Show final structure
+        run: |
+          echo "📁 Final structure:"
+          find . -name "*.html" | head -10
+          echo "📊 Total HTML files: $(find . -name "*.html" | wc -l)"
+          echo "📋 Versions available: $(ls -1 versions/ 2>/dev/null | wc -l || echo 0)"
+          
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
