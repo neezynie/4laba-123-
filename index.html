@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Главная страница - Лабораторная работа №4</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        nav { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            padding: 25px; 
+            border-radius: 15px; 
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        nav a { 
+            margin: 0 20px; 
+            text-decoration: none; 
+            color: white; 
+            font-weight: bold;
+            font-size: 20px;
+            padding: 12px 25px;
+            border-radius: 30px;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        nav a:hover { 
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-3px);
+        }
+        .version-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            transition: all 0.3s;
+            color: white;
+        }
+        .version-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .version-card a {
+            text-decoration: none;
+            color: white;
+            font-weight: bold;
+            margin-right: 20px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            transition: all 0.3s;
+        }
+        .version-card a:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        .current-version {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+            font-size: 18px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        h2 {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+        .stats {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Лабораторная работа №4</h1>
+        <h2>Автоматизация публикации web приложения</h2>
+        
+        <div class="stats">
+            <strong>Репозиторий:</strong> 4laba-123- | 
+            <strong>Студент:</strong> Neezinie |
+            <strong>Обновлено:</strong> <span id="current-time"></span>
+        </div>
+
+        <nav>
+            <a href="ru/">🇷🇺 Русская версия</a>
+            <a href="en/">🇺🇸 English Version</a>
+        </nav>
+
+        <div class="version-card current-version">
+            <h3>📱 Текущая версия (последняя)</h3>
+            <p>Всегда указывает на самую свежую версию сайта</p>
+            <p>
+                <a href="ru/">Русская версия</a> 
+                <a href="en/">English version</a>
+            </p>
+        </div>
+
+        <h2>📚 Все доступные версии сайта:</h2>
+        <div id="versions-list" class="loading">
+            Загрузка списка версий...
+        </div>
+    </div>
+
+    <script>
+        // Обновляем текущее время
+        function updateTime() {
+            document.getElementById('current-time').textContent = new Date().toLocaleString('ru-RU');
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Загрузка версий
+        async function loadVersions() {
+            try {
+                const response = await fetch('versions.json?' + new Date().getTime());
+                const versions = await response.json();
+                console.log('Loaded versions:', versions);
+                displayVersions(versions);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('versions-list').innerHTML = 
+                    '<div class="version-card">Ошибка загрузки версий. Убедитесь что файл versions.json существует.</div>';
+            }
+        }
+        
+        function displayVersions(versions) {
+            const list = document.getElementById('versions-list');
+            
+            if (!versions || versions.length === 0) {
+                list.innerHTML = '<div class="version-card">Пока нет версий. Создайте первый релиз!</div>';
+                return;
+            }
+            
+            list.innerHTML = '';
+            versions.forEach(version => {
+                const versionElement = document.createElement('div');
+                versionElement.className = 'version-card';
+                versionElement.innerHTML = `
+                    <h3>🎯 Версия ${version.name}</h3>
+                    <p><strong>Дата:</strong> ${new Date(version.date).toLocaleDateString('ru-RU')} | 
+                       <strong>Время:</strong> ${new Date(version.date).toLocaleTimeString('ru-RU')}</p>
+                    <p>${version.description || 'Автоматически созданный релиз'}</p>
+                    <p>
+                        <a href="${version.url}/ru/" target="_blank">🇷🇺 Русская версия</a> 
+                        <a href="${version.url}/en/" target="_blank">🇺🇸 English version</a>
+                        <a href="${version.url}/" target="_blank">📄 Главная страница</a>
+                    </p>
+                `;
+                list.appendChild(versionElement);
+            });
+        }
+
+        loadVersions();
+        setInterval(loadVersions, 10000); // Обновлять каждые 10 секунд
+    </script>
+</body>
+</html>
